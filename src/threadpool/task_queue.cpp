@@ -2,7 +2,7 @@
 
 namespace threadpool {
 
-void TaskQueue::enqueue(std::function<void()> task) {
+void TaskQueue::enqueue(std::unique_ptr<ITask> task) {
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (shutdown_) {
@@ -13,15 +13,15 @@ void TaskQueue::enqueue(std::function<void()> task) {
     cv_.notify_one();
 }
 
-std::optional<std::function<void()>> TaskQueue::dequeue() {
+std::unique_ptr<ITask> TaskQueue::dequeue() {
     std::unique_lock<std::mutex> lock(mutex_);
     cv_.wait(lock, [this] { return shutdown_ || !tasks_.empty(); });
 
     if (tasks_.empty()) {
-        return std::nullopt;
+        return nullptr;
     }
 
-    std::function<void()> task = std::move(tasks_.front());
+    std::unique_ptr<ITask> task = std::move(tasks_.front());
     tasks_.pop();
     return task;
 }

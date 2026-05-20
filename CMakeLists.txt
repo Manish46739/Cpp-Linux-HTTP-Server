@@ -7,10 +7,13 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_executable(server
     src/main.cpp
+    src/config/server_config.cpp
     src/http/http_request.cpp
     src/http/http_response.cpp
+    src/logger/logger.cpp
     src/router/router.cpp
     src/server/client_handler.cpp
+    src/server/static_file.cpp
     src/threadpool/task_queue.cpp
     src/threadpool/thread_pool.cpp
 )

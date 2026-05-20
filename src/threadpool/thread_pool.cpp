@@ -16,10 +16,6 @@ ThreadPool::~ThreadPool() {
     shutdown();
 }
 
-void ThreadPool::submit(std::function<void()> task) {
-    queue_.enqueue(std::move(task));
-}
-
 void ThreadPool::shutdown() {
     queue_.shutdown();
     for (std::thread& worker : workers_) {
@@ -32,11 +28,11 @@ void ThreadPool::shutdown() {
 
 void ThreadPool::worker_loop() {
     while (true) {
-        std::optional<std::function<void()>> task = queue_.dequeue();
+        std::unique_ptr<ITask> task = queue_.dequeue();
         if (!task) {
             return;
         }
-        (*task)();
+        task->run();
     }
 }
 

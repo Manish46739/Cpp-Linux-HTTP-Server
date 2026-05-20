@@ -3,8 +3,8 @@
 #include "threadpool/task_queue.hpp"
 
 #include <cstddef>
-#include <functional>
 #include <thread>
+#include <utility>
 #include <vector>
 
 namespace threadpool {
@@ -17,7 +17,11 @@ public:
     ThreadPool(const ThreadPool&) = delete;
     ThreadPool& operator=(const ThreadPool&) = delete;
 
-    void submit(std::function<void()> task);
+    template <typename F>
+    void submit(F&& f) {
+        queue_.enqueue(std::forward<F>(f));
+    }
+
     void shutdown();
 
     std::size_t size() const { return workers_.size(); }

@@ -1,6 +1,6 @@
 # Multithreaded HTTP Server (C++17)
 
-Linux development environment via Docker. Currently at **Phase 3** (thread pool + concurrent client handling).
+Linux development environment via Docker. Currently at **Phase 4** (static files, structured logging, configuration).
 
 ## Prerequisites (Windows host)
 
@@ -24,49 +24,61 @@ cmake --build build -j
 ./build/server 8080 4
 ```
 
-Arguments: `port` (default 8080), `worker_threads` (default 4).
+CLI arguments override environment defaults:
+
+- `./build/server [port] [worker_threads]`
+
+## Configuration (environment variables)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SERVER_PORT` | `8080` | Listen port |
+| `SERVER_THREADS` | `4` | Thread pool size |
+| `SERVER_STATIC_ROOT` | `static` | Directory for static files |
+| `SERVER_LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARN`, `ERROR` |
+
+Example:
+
+```bash
+export SERVER_LOG_LEVEL=DEBUG
+export SERVER_STATIC_ROOT=static
+./build/server
+```
 
 ## Test routes (from Windows)
 
 ```powershell
 curl.exe -v http://127.0.0.1:8080/
 curl.exe -v http://127.0.0.1:8080/health
-curl.exe -v http://127.0.0.1:8080/unknown
+curl.exe -v http://127.0.0.1:8080/style.css
+curl.exe -v http://127.0.0.1:8080/not-found
 ```
 
 Expected:
 
-| Path | Status | Body |
-|------|--------|------|
-| `/` | 200 | `Hello from C++ HTTP server` |
+| Path | Status | Notes |
+|------|--------|-------|
+| `/` | 200 | Serves `static/index.html` |
 | `/health` | 200 | `ok` |
-| `/unknown` | 404 | `Not Found` |
+| `/style.css` | 200 | CSS from static folder |
+| `/unknown` | 404 | No matching file |
 
-The server handles multiple clients **concurrently** via a thread pool. Press **Ctrl+C** for graceful shutdown (finishes in-flight requests, then exits).
+Open `http://127.0.0.1:8080/` in a browser to see the HTML page.
 
-## Concurrency smoke test (inside container)
+Press **Ctrl+C** in the server terminal for graceful shutdown.
 
-```bash
-for i in $(seq 1 20); do curl -s http://127.0.0.1:8080/health & done; wait
-```
-
-You should see overlapping "Worker handling ..." log lines from different threads.
-
-## Project layout (Phase 3)
+## Project layout (Phase 4)
 
 ```
 include/
-  http/         HTTP request parser + response serializer
-  router/       Path routing
-  server/       Per-client request handling
+  config/       Server configuration (env + CLI)
+  logger/       Structured, thread-safe logging
+  http/         Request parser + response serializer
+  router/       Routes + static file fallback
+  server/       Client handler + static file serving
   threadpool/   Task queue + worker threads
-  utils/        RAII helpers, thread-safe logging
-src/
-  main.cpp      Accept loop enqueues client handlers
-  http/
-  router/
-  server/
-  threadpool/
+  utils/        RAII helpers
+static/         Public files (index.html, style.css, ...)
 ```
 
 ## Troubleshooting Docker

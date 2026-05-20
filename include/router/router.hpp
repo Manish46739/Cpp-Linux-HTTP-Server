@@ -1,9 +1,11 @@
 #pragma once
 
+#include "config/server_config.hpp"
 #include "http/http_request.hpp"
 #include "http/http_response.hpp"
 
 #include <functional>
+#include <optional>
 #include <string>
 #include <unordered_map>
 
@@ -14,6 +16,7 @@ using Handler = std::function<http::HttpResponse(const http::HttpRequest&)>;
 class Router {
 public:
     void add_route(const std::string& method, const std::string& path, Handler handler);
+    void set_fallback(Handler handler);
 
     http::HttpResponse route(const http::HttpRequest& request) const;
 
@@ -36,8 +39,9 @@ private:
     };
 
     std::unordered_map<RouteKey, Handler, RouteKeyHash> routes_;
+    std::optional<Handler> fallback_;
 };
 
-Router make_default_router();
+Router make_default_router(const config::ServerConfig& config);
 
 } // namespace router
