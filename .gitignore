@@ -1,0 +1,44 @@
+# Build output
+build/
+cmake-build-*/
+out/
+
+# Compiled objects / binaries
+*.o
+*.obj
+*.a
+*.so
+*.dll
+*.exe
+server
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Debug / profiling
+*.dSYM/
+*.su
+*.idb
+*.pdb
+core
+vgcore.*
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+compile_commands.json
+
+# Test / coverage
+*.gcno
+*.gcda
+*.gcov

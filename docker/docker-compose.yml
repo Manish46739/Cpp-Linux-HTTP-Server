@@ -1,0 +1,11 @@
+services:
+  cpp-http-server:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    volumes:
+      - ..:/workspace
+    working_dir: /workspace
+    tty: true
+    ports:
+      - "8080:8080"
