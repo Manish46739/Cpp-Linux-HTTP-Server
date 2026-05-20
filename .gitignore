@@ -10,7 +10,10 @@ out/
 *.so
 *.dll
 *.exe
-server
+
+# Binary name matches a source folder; ignore only the built executable.
+/build/server
+/server
 
 # IDE / editor
 .vscode/
