@@ -26,14 +26,15 @@ std::string status_text(int status_code) {
 
 HttpResponse make_response(int status_code,
                            const std::string& body,
-                           const std::string& content_type) {
+                           const std::string& content_type,
+                           const bool keep_alive) {
     HttpResponse response;
     response.status_code = status_code;
     response.status_message = status_text(status_code);
     response.body = body;
     response.headers["Content-Type"] = content_type;
     response.headers["Content-Length"] = std::to_string(body.size());
-    response.headers["Connection"] = "close";
+    response.headers["Connection"] = keep_alive ? "keep-alive" : "close";
     return response;
 }
 

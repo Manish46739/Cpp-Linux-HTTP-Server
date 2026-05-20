@@ -16,7 +16,8 @@ std::string status_text(int status_code);
 
 HttpResponse make_response(int status_code,
                            const std::string& body,
-                           const std::string& content_type = "text/plain; charset=utf-8");
+                           const std::string& content_type = "text/plain; charset=utf-8",
+                           bool keep_alive = false);
 
 // Serializes to wire format (HTTP/1.1, CRLF).
 std::string serialize(const HttpResponse& response);

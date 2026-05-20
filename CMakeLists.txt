@@ -14,6 +14,8 @@ add_executable(server
     src/router/router.cpp
     src/server/client_handler.cpp
     src/server/static_file.cpp
+    src/server/epoll_server.cpp
+    src/utils/nonblocking.cpp
     src/threadpool/task_queue.cpp
     src/threadpool/thread_pool.cpp
 )

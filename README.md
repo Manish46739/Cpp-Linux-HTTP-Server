@@ -1,6 +1,6 @@
 # Multithreaded HTTP Server (C++17)
 
-Linux development environment via Docker. Currently at **Phase 4** (static files, structured logging, configuration).
+Linux development environment via Docker. Currently at **Phase 5** (epoll, non-blocking I/O, keep-alive).
 
 ## Prerequisites (Windows host)
 
@@ -24,25 +24,27 @@ cmake --build build -j
 ./build/server 8080 4
 ```
 
-CLI arguments override environment defaults:
-
-- `./build/server [port] [worker_threads]`
+Default I/O model is **epoll** (non-blocking, keep-alive). Thread pool mode is still available.
 
 ## Configuration (environment variables)
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SERVER_PORT` | `8080` | Listen port |
-| `SERVER_THREADS` | `4` | Thread pool size |
+| `SERVER_THREADS` | `4` | Thread pool size (threadpool mode only) |
 | `SERVER_STATIC_ROOT` | `static` | Directory for static files |
 | `SERVER_LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARN`, `ERROR` |
+| `SERVER_IO_MODEL` | `epoll` | `epoll` or `threadpool` |
 
-Example:
+Examples:
 
 ```bash
-export SERVER_LOG_LEVEL=DEBUG
-export SERVER_STATIC_ROOT=static
-./build/server
+# Epoll mode (default)
+./build/server 8080
+
+# Thread pool mode (Phase 3 blocking model)
+export SERVER_IO_MODEL=threadpool
+./build/server 8080 4
 ```
 
 ## Test routes (from Windows)
@@ -51,34 +53,39 @@ export SERVER_STATIC_ROOT=static
 curl.exe -v http://127.0.0.1:8080/
 curl.exe -v http://127.0.0.1:8080/health
 curl.exe -v http://127.0.0.1:8080/style.css
-curl.exe -v http://127.0.0.1:8080/not-found
 ```
 
-Expected:
+### Test keep-alive (epoll mode)
 
-| Path | Status | Notes |
-|------|--------|-------|
-| `/` | 200 | Serves `static/index.html` |
-| `/health` | 200 | `ok` |
-| `/style.css` | 200 | CSS from static folder |
-| `/unknown` | 404 | No matching file |
+```bash
+# Inside container — multiple requests on one connection
+printf 'GET /health HTTP/1.1\r\nHost: localhost\r\n\r\nGET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' | nc 127.0.0.1 8080
+```
 
-Open `http://127.0.0.1:8080/` in a browser to see the HTML page.
+You should see two HTTP responses before the connection closes.
 
-Press **Ctrl+C** in the server terminal for graceful shutdown.
+Press **Ctrl+C** for graceful shutdown.
 
-## Project layout (Phase 4)
+## Architecture (Phase 5)
 
 ```
-include/
-  config/       Server configuration (env + CLI)
-  logger/       Structured, thread-safe logging
-  http/         Request parser + response serializer
-  router/       Routes + static file fallback
-  server/       Client handler + static file serving
-  threadpool/   Task queue + worker threads
-  utils/        RAII helpers
-static/         Public files (index.html, style.css, ...)
+┌─────────────────────────────────────┐
+│  epoll_wait() event loop            │
+│  - listen fd (accept, non-blocking) │
+│  - client fds (EPOLLIN / EPOLLOUT)  │
+└─────────────────────────────────────┘
+         │ read buffer → parse HTTP
+         │ router → serialize response
+         │ write buffer → keep-alive or close
+```
+
+## Project layout
+
+```
+include/server/epoll_server.hpp   Linux epoll event loop
+include/server/connection.hpp     Per-connection buffers
+include/utils/nonblocking.hpp     fcntl O_NONBLOCK
+include/threadpool/               Still used when SERVER_IO_MODEL=threadpool
 ```
 
 ## Troubleshooting Docker

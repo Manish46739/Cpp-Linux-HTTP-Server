@@ -30,6 +30,13 @@ std::size_t parse_thread_count(const std::string& value) {
     return static_cast<std::size_t>(count);
 }
 
+IoModel parse_io_model(const std::string& value) {
+    if (value == "threadpool" || value == "threads" || value == "THREADPOOL") {
+        return IoModel::ThreadPool;
+    }
+    return IoModel::Epoll;
+}
+
 logger::Level parse_log_level(const std::string& value) {
     if (value == "DEBUG" || value == "debug") {
         return logger::Level::Debug;
@@ -53,6 +60,7 @@ ServerConfig ServerConfig::load(int argc, char** argv) {
         cfg.thread_count = parse_thread_count(env_or("SERVER_THREADS", "4"));
         cfg.static_root = env_or("SERVER_STATIC_ROOT", "static");
         cfg.log_level = parse_log_level(env_or("SERVER_LOG_LEVEL", "INFO"));
+        cfg.io_model = parse_io_model(env_or("SERVER_IO_MODEL", "epoll"));
     } catch (const std::exception&) {
         throw std::invalid_argument("invalid environment configuration");
     }
