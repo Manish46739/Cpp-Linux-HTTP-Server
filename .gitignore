@@ -13,6 +13,7 @@ out/
 
 # Binary name matches a source folder; ignore only the built executable.
 /build/server
+/build/server_tests
 /server
 
 # IDE / editor

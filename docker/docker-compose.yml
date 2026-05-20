@@ -3,9 +3,28 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
+      target: dev
     volumes:
       - ..:/workspace
     working_dir: /workspace
     tty: true
     ports:
       - "8080:8080"
+
+  test:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: builder
+    profiles:
+      - test
+
+  server:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: runtime
+    ports:
+      - "8080:8080"
+    profiles:
+      - prod
