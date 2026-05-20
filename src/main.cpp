@@ -3,6 +3,7 @@
 #include "router/router.hpp"
 #include "server/client_handler.hpp"
 #include "server/epoll_server.hpp"
+#include "server/request_pipeline.hpp"
 #include "threadpool/thread_pool.hpp"
 #include "utils/unique_fd.hpp"
 
@@ -57,7 +58,7 @@ utils::UniqueFd create_listen_socket(const uint16_t port) {
     return listen_fd;
 }
 
-void run_thread_pool_server(const config::ServerConfig& cfg, const router::Router& router) {
+void run_thread_pool_server(const config::ServerConfig& cfg, const server::RequestPipeline& pipeline) {
     utils::UniqueFd listen_fd = create_listen_socket(cfg.port);
     threadpool::ThreadPool pool(cfg.thread_count);
 
@@ -87,8 +88,8 @@ void run_thread_pool_server(const config::ServerConfig& cfg, const router::Route
 
         logger::instance().debug("Accepted connection from ", client_ip, ":", client_port);
 
-        pool.submit([client_fd = std::move(client_fd), &router, client_ip, client_port]() mutable {
-            server::handle_client(std::move(client_fd), router, client_ip, client_port);
+        pool.submit([client_fd = std::move(client_fd), &pipeline, client_ip, client_port]() mutable {
+            server::handle_client(std::move(client_fd), pipeline, client_ip, client_port);
         });
     }
 
@@ -101,19 +102,23 @@ void run_thread_pool_server(const config::ServerConfig& cfg, const router::Route
 int main(int argc, char** argv) {
     try {
         const config::ServerConfig cfg = config::ServerConfig::load(argc, argv);
-        logger::init(cfg.log_level);
+        logger::init(cfg.log_level, cfg.async_logging);
+
         const router::Router router = router::make_default_router(cfg);
+        const server::RequestPipeline pipeline(cfg, router);
 
         std::signal(SIGINT, on_signal);
         std::signal(SIGTERM, on_signal);
 
         if (cfg.io_model == config::IoModel::Epoll) {
-            server::EpollServer epoll_server(cfg, router);
+            server::EpollServer epoll_server(cfg, pipeline);
             epoll_server.run(g_running);
         } else {
-            run_thread_pool_server(cfg, router);
+            run_thread_pool_server(cfg, pipeline);
             logger::instance().info("Server stopped.");
         }
+
+        logger::shutdown();
     } catch (const std::exception& ex) {
         std::cerr << "Configuration error: " << ex.what() << "\n";
         return 1;

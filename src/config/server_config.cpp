@@ -37,6 +37,26 @@ IoModel parse_io_model(const std::string& value) {
     return IoModel::Epoll;
 }
 
+bool parse_bool(const std::string& value) {
+    return value == "1" || value == "true" || value == "TRUE" || value == "yes" || value == "YES";
+}
+
+double parse_rate_limit_rps(const std::string& value) {
+    const double rps = std::stod(value);
+    if (rps < 0.0) {
+        return 0.0;
+    }
+    return rps;
+}
+
+std::size_t parse_size_t(const std::string& value) {
+    const int n = std::stoi(value);
+    if (n < 0) {
+        return 0;
+    }
+    return static_cast<std::size_t>(n);
+}
+
 logger::Level parse_log_level(const std::string& value) {
     if (value == "DEBUG" || value == "debug") {
         return logger::Level::Debug;
@@ -61,6 +81,12 @@ ServerConfig ServerConfig::load(int argc, char** argv) {
         cfg.static_root = env_or("SERVER_STATIC_ROOT", "static");
         cfg.log_level = parse_log_level(env_or("SERVER_LOG_LEVEL", "INFO"));
         cfg.io_model = parse_io_model(env_or("SERVER_IO_MODEL", "epoll"));
+        cfg.async_logging = parse_bool(env_or("SERVER_ASYNC_LOG", "true"));
+        cfg.rate_limit_rps = parse_rate_limit_rps(env_or("SERVER_RATE_LIMIT_RPS", "50"));
+        cfg.rate_limit_burst = parse_size_t(env_or("SERVER_RATE_LIMIT_BURST", "100"));
+        cfg.cache_max_entries = parse_size_t(env_or("SERVER_CACHE_MAX_ENTRIES", "128"));
+        cfg.cache_ttl_seconds = parse_size_t(env_or("SERVER_CACHE_TTL_SECONDS", "60"));
+        cfg.request_timeout_seconds = parse_size_t(env_or("SERVER_REQUEST_TIMEOUT_SECONDS", "30"));
     } catch (const std::exception&) {
         throw std::invalid_argument("invalid environment configuration");
     }

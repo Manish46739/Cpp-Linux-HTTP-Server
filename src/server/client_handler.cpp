@@ -13,7 +13,7 @@
 namespace server {
 
 void handle_client(utils::UniqueFd client_fd,
-                   const router::Router& router,
+                   const RequestPipeline& pipeline,
                    const std::string& client_ip,
                    const uint16_t client_port) {
     logger::instance().debug("Worker handling ", client_ip, ":", client_port);
@@ -42,7 +42,10 @@ void handle_client(utils::UniqueFd client_fd,
     } else {
         logger::instance().info(request->method, " ", request->path, " ", request->version,
                                 " from ", client_ip);
-        response = router.route(*request);
+        response = pipeline.process(*request, client_ip);
+        if (http::should_keep_alive(*request)) {
+            response.headers["Connection"] = "keep-alive";
+        }
     }
 
     const std::string wire = http::serialize(response);

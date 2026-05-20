@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 #include <string>
 
@@ -15,6 +16,8 @@ struct Connection {
     std::size_t write_offset = 0;
 
     bool keep_alive = false;
+
+    std::chrono::steady_clock::time_point last_activity = std::chrono::steady_clock::now();
 };
 
 } // namespace server

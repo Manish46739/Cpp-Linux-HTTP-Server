@@ -1,18 +1,11 @@
 # Multithreaded HTTP Server (C++17)
 
-Linux development environment via Docker. Currently at **Phase 5** (epoll, non-blocking I/O, keep-alive).
-
-## Prerequisites (Windows host)
-
-- Docker Desktop installed and **running**
-- Linux containers enabled
+Linux development environment via Docker. Currently at **Phase 6** (async logging, rate limiting, caching, timeouts, middleware pipeline).
 
 ## Quick start
 
-From `server/` in PowerShell:
-
 ```powershell
-docker compose -f docker/docker-compose.yml build
+cd "C:\Users\kumar\Desktop\Cpp Project\server"
 docker compose -f docker/docker-compose.yml run --rm -p 8080:8080 cpp-http-server bash
 ```
 
@@ -24,70 +17,56 @@ cmake --build build -j
 ./build/server 8080 4
 ```
 
-Default I/O model is **epoll** (non-blocking, keep-alive). Thread pool mode is still available.
-
-## Configuration (environment variables)
+## Configuration
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SERVER_PORT` | `8080` | Listen port |
-| `SERVER_THREADS` | `4` | Thread pool size (threadpool mode only) |
-| `SERVER_STATIC_ROOT` | `static` | Directory for static files |
+| `SERVER_THREADS` | `4` | Thread pool size (threadpool mode) |
+| `SERVER_STATIC_ROOT` | `static` | Static files directory |
 | `SERVER_LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARN`, `ERROR` |
 | `SERVER_IO_MODEL` | `epoll` | `epoll` or `threadpool` |
+| `SERVER_ASYNC_LOG` | `true` | Background logging thread |
+| `SERVER_RATE_LIMIT_RPS` | `50` | Requests/sec per IP (`0` = off) |
+| `SERVER_RATE_LIMIT_BURST` | `100` | Token bucket burst size |
+| `SERVER_CACHE_MAX_ENTRIES` | `128` | Response cache size (`0` = off) |
+| `SERVER_CACHE_TTL_SECONDS` | `60` | Cache entry TTL |
+| `SERVER_REQUEST_TIMEOUT_SECONDS` | `30` | Idle connection timeout (`0` = off) |
 
-Examples:
-
-```bash
-# Epoll mode (default)
-./build/server 8080
-
-# Thread pool mode (Phase 3 blocking model)
-export SERVER_IO_MODEL=threadpool
-./build/server 8080 4
-```
-
-## Test routes (from Windows)
+## Test
 
 ```powershell
-curl.exe -v http://127.0.0.1:8080/
-curl.exe -v http://127.0.0.1:8080/health
-curl.exe -v http://127.0.0.1:8080/style.css
+curl.exe http://127.0.0.1:8080/
+curl.exe http://127.0.0.1:8080/health
 ```
 
-### Test keep-alive (epoll mode)
+**Cache** — repeat the same GET; with `SERVER_LOG_LEVEL=DEBUG` you should see `Cache hit` in logs.
+
+**Rate limit** — lower limits to test 429:
 
 ```bash
-# Inside container — multiple requests on one connection
-printf 'GET /health HTTP/1.1\r\nHost: localhost\r\n\r\nGET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' | nc 127.0.0.1 8080
+export SERVER_RATE_LIMIT_RPS=2
+export SERVER_RATE_LIMIT_BURST=2
+export SERVER_LOG_LEVEL=DEBUG
+./build/server
+# then run many rapid curl requests
 ```
 
-You should see two HTTP responses before the connection closes.
-
-Press **Ctrl+C** for graceful shutdown.
-
-## Architecture (Phase 5)
+## Request pipeline (middleware order)
 
 ```
-┌─────────────────────────────────────┐
-│  epoll_wait() event loop            │
-│  - listen fd (accept, non-blocking) │
-│  - client fds (EPOLLIN / EPOLLOUT)  │
-└─────────────────────────────────────┘
-         │ read buffer → parse HTTP
-         │ router → serialize response
-         │ write buffer → keep-alive or close
+1. Rate limiting (per client IP, token bucket)
+2. Cache lookup (GET, 200 responses)
+3. Router / static file handler
+4. Cache store (on cacheable responses)
 ```
 
-## Project layout
+## Architecture
 
 ```
-include/server/epoll_server.hpp   Linux epoll event loop
-include/server/connection.hpp     Per-connection buffers
-include/utils/nonblocking.hpp     fcntl O_NONBLOCK
-include/threadpool/               Still used when SERVER_IO_MODEL=threadpool
+Client → epoll (non-blocking) → RequestPipeline → HTTP response
+                ↓
+         AsyncLogger (background thread)
 ```
 
-## Troubleshooting Docker
-
-If you see `dockerDesktopLinuxEngine: The system cannot find the file specified`, start Docker Desktop and ensure WSL2 + Linux containers are enabled.
+Press **Ctrl+C** for graceful shutdown (drains async log queue).

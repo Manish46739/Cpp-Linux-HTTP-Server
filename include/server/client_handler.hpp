@@ -1,6 +1,6 @@
 #pragma once
 
-#include "router/router.hpp"
+#include "server/request_pipeline.hpp"
 #include "utils/unique_fd.hpp"
 
 #include <cstdint>
@@ -9,7 +9,7 @@
 namespace server {
 
 void handle_client(utils::UniqueFd client_fd,
-                   const router::Router& router,
+                   const RequestPipeline& pipeline,
                    const std::string& client_ip,
                    uint16_t client_port);
 

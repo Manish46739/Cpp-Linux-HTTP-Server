@@ -1,8 +1,8 @@
 #pragma once
 
 #include "config/server_config.hpp"
-#include "router/router.hpp"
 #include "server/connection.hpp"
+#include "server/request_pipeline.hpp"
 #include "utils/unique_fd.hpp"
 
 #include <atomic>
@@ -14,7 +14,7 @@ namespace server {
 
 class EpollServer {
 public:
-    EpollServer(const config::ServerConfig& config, const router::Router& router);
+    EpollServer(const config::ServerConfig& config, const RequestPipeline& pipeline);
 
     void run(std::atomic<bool>& running);
 
@@ -33,13 +33,15 @@ private:
     void process_requests(ConnectionState& state);
     void start_write(ConnectionState& state, const std::string& wire, bool keep_alive);
     void close_connection(int fd);
+    void touch_activity(Connection& conn);
+    void check_timeouts();
 
     void epoll_add(int fd, uint32_t events);
     void epoll_mod(int fd, uint32_t events);
     void epoll_del(int fd);
 
     config::ServerConfig config_;
-    const router::Router& router_;
+    const RequestPipeline& pipeline_;
 
     utils::UniqueFd listen_fd_;
     utils::UniqueFd epoll_fd_;

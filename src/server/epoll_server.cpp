@@ -6,6 +6,7 @@
 #include "utils/nonblocking.hpp"
 
 #include <arpa/inet.h>
+#include <chrono>
 #include <cerrno>
 #include <cstring>
 #include <netinet/in.h>
@@ -30,8 +31,8 @@ constexpr std::size_t kReadChunk = 4096;
 
 } // namespace
 
-EpollServer::EpollServer(const config::ServerConfig& config, const router::Router& router)
-    : config_(config), router_(router) {
+EpollServer::EpollServer(const config::ServerConfig& config, const RequestPipeline& pipeline)
+    : config_(config), pipeline_(pipeline) {
     setup_listen_socket();
 
     epoll_fd_.reset(::epoll_create1(EPOLL_CLOEXEC));
@@ -130,6 +131,7 @@ void EpollServer::accept_connections() {
         state->conn.peer_ip = ip;
         state->conn.peer_port = ntohs(client_addr.sin_port);
 
+        touch_activity(state->conn);
         logger::instance().debug("Accepted ", state->conn.peer_ip, ":", state->conn.peer_port);
 
         epoll_add(client_fd, EPOLLIN);
@@ -166,7 +168,7 @@ void EpollServer::process_requests(ConnectionState& state) {
             keep_alive = http::should_keep_alive(*request);
             logger::instance().info(request->method, " ", request->path, " ", request->version,
                                     " from ", state->conn.peer_ip);
-            response = router_.route(*request);
+            response = pipeline_.process(*request, state->conn.peer_ip);
             response.headers["Connection"] = keep_alive ? "keep-alive" : "close";
         }
 
@@ -197,6 +199,7 @@ void EpollServer::handle_readable(const int fd) {
                 return;
             }
             state.conn.read_buffer.append(buffer, buffer + n);
+            touch_activity(state.conn);
             process_requests(state);
             if (state.state == ConnState::Writing) {
                 return;
@@ -249,6 +252,7 @@ void EpollServer::handle_writable(const int fd) {
         return;
     }
 
+    touch_activity(state.conn);
     logger::instance().debug("Finished response to ", state.conn.peer_ip);
 
     if (!state.conn.keep_alive) {
@@ -266,16 +270,46 @@ void EpollServer::handle_writable(const int fd) {
     }
 }
 
+void EpollServer::touch_activity(Connection& conn) {
+    conn.last_activity = std::chrono::steady_clock::now();
+}
+
+void EpollServer::check_timeouts() {
+    if (config_.request_timeout_seconds == 0) {
+        return;
+    }
+
+    const auto now = std::chrono::steady_clock::now();
+    const auto limit = std::chrono::seconds(static_cast<int>(config_.request_timeout_seconds));
+
+    std::vector<int> timed_out;
+    for (const auto& entry : connections_) {
+        if (now - entry.second->conn.last_activity > limit) {
+            timed_out.push_back(entry.first);
+        }
+    }
+
+    for (const int fd : timed_out) {
+        logger::instance().warn("Request timeout, closing fd ", fd);
+        close_connection(fd);
+    }
+}
+
 void EpollServer::run(std::atomic<bool>& running) {
     epoll_event events[kMaxEvents];
 
     logger::instance().info("Epoll server listening on 0.0.0.0:", config_.port);
     logger::instance().info("I/O model: epoll (non-blocking, keep-alive enabled)");
     logger::instance().info("Static root: ", config_.static_root);
+    logger::instance().info("Rate limit: ", config_.rate_limit_rps, " rps, burst ", config_.rate_limit_burst);
+    logger::instance().info("Cache: ", config_.cache_max_entries, " entries, TTL ", config_.cache_ttl_seconds,
+                            "s");
+    logger::instance().info("Request timeout: ", config_.request_timeout_seconds, "s");
     logger::instance().info("Press Ctrl+C to stop");
 
     while (running.load()) {
         const int ready = ::epoll_wait(epoll_fd_.get(), events, kMaxEvents, kEpollWaitMs);
+        check_timeouts();
         if (ready < 0) {
             if (errno == EINTR) {
                 continue;
