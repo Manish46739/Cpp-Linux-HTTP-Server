@@ -9,7 +9,7 @@
 namespace server {
 
 void handle_client(utils::UniqueFd client_fd,
-                   const RequestPipeline& pipeline,
+                   RequestPipeline& pipeline,
                    const std::string& client_ip,
                    uint16_t client_port);
 

@@ -31,7 +31,7 @@ constexpr std::size_t kReadChunk = 4096;
 
 } // namespace
 
-EpollServer::EpollServer(const config::ServerConfig& config, const RequestPipeline& pipeline)
+EpollServer::EpollServer(const config::ServerConfig& config, RequestPipeline& pipeline)
     : config_(config), pipeline_(pipeline) {
     setup_listen_socket();
 
@@ -140,21 +140,21 @@ void EpollServer::accept_connections() {
 }
 
 void EpollServer::start_write(ConnectionState& state, const std::string& wire, const bool keep_alive) {
-    state->conn.write_buffer = wire;
-    state->conn.write_offset = 0;
-    state->conn.keep_alive = keep_alive;
-    state->state = ConnState::Writing;
-    epoll_mod(state->conn.fd, EPOLLOUT);
+    state.conn.write_buffer = wire;
+    state.conn.write_offset = 0;
+    state.conn.keep_alive = keep_alive;
+    state.state = ConnState::Writing;
+    epoll_mod(state.conn.fd, EPOLLOUT);
 }
 
 void EpollServer::process_requests(ConnectionState& state) {
-    while (state->state == ConnState::Reading) {
-        const auto request_size = http::complete_request_size(state->conn.read_buffer);
+    while (state.state == ConnState::Reading) {
+        const auto request_size = http::complete_request_size(state.conn.read_buffer);
         if (!request_size) {
             return;
         }
 
-        const std::string raw = state->conn.read_buffer.substr(0, *request_size);
+        const std::string raw = state.conn.read_buffer.substr(0, *request_size);
         const auto request = http::parse_http_request(raw);
 
         http::HttpResponse response;
@@ -163,16 +163,16 @@ void EpollServer::process_requests(ConnectionState& state) {
         if (!request) {
             response = http::make_response(400, "Bad Request\n");
             keep_alive = false;
-            logger::instance().warn("Malformed request from ", state->conn.peer_ip);
+            logger::instance().warn("Malformed request from ", state.conn.peer_ip);
         } else {
             keep_alive = http::should_keep_alive(*request);
             logger::instance().info(request->method, " ", request->path, " ", request->version,
-                                    " from ", state->conn.peer_ip);
-            response = pipeline_.process(*request, state->conn.peer_ip);
+                                    " from ", state.conn.peer_ip);
+            response = pipeline_.process(*request, state.conn.peer_ip);
             response.headers["Connection"] = keep_alive ? "keep-alive" : "close";
         }
 
-        state->conn.read_buffer.erase(0, *request_size);
+        state.conn.read_buffer.erase(0, *request_size);
         start_write(state, http::serialize(response), keep_alive);
         return;
     }

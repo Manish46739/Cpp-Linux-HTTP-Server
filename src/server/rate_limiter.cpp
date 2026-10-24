@@ -23,7 +23,9 @@ bool RateLimiter::allow(const std::string& key) {
     }
 
     std::lock_guard<std::mutex> lock(mutex_);
-    Bucket& bucket = buckets_[key];
+    const auto now = std::chrono::steady_clock::now();
+    auto bucket_result = buckets_.try_emplace(key, Bucket{burst_size_, now});
+    Bucket& bucket = bucket_result.first->second;
     refill(bucket);
 
     if (bucket.tokens >= 1.0) {

@@ -58,7 +58,7 @@ utils::UniqueFd create_listen_socket(const uint16_t port) {
     return listen_fd;
 }
 
-void run_thread_pool_server(const config::ServerConfig& cfg, const server::RequestPipeline& pipeline) {
+void run_thread_pool_server(const config::ServerConfig& cfg, server::RequestPipeline& pipeline) {
     utils::UniqueFd listen_fd = create_listen_socket(cfg.port);
     threadpool::ThreadPool pool(cfg.thread_count);
 
@@ -105,7 +105,7 @@ int main(int argc, char** argv) {
         logger::init(cfg.log_level, cfg.async_logging);
 
         const router::Router router = router::make_default_router(cfg);
-        const server::RequestPipeline pipeline(cfg, router);
+        server::RequestPipeline pipeline(cfg, router);
 
         std::signal(SIGINT, on_signal);
         std::signal(SIGTERM, on_signal);

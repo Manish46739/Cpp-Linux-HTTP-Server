@@ -1,5 +1,6 @@
 #pragma once
 
+#include "http/http_request.hpp"
 #include "http/http_response.hpp"
 
 #include <chrono>

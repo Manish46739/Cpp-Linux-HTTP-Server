@@ -13,7 +13,7 @@
 namespace server {
 
 void handle_client(utils::UniqueFd client_fd,
-                   const RequestPipeline& pipeline,
+                   RequestPipeline& pipeline,
                    const std::string& client_ip,
                    const uint16_t client_port) {
     logger::instance().debug("Worker handling ", client_ip, ":", client_port);

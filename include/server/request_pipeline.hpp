@@ -17,7 +17,7 @@ public:
     RequestPipeline(const config::ServerConfig& config, const router::Router& router);
 
     http::HttpResponse process(const http::HttpRequest& request,
-                               const std::string& client_ip) const;
+                               const std::string& client_ip);
 
 private:
     bool is_cacheable(const http::HttpRequest& request, const http::HttpResponse& response) const;

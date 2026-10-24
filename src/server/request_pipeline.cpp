@@ -27,7 +27,7 @@ bool RequestPipeline::is_cacheable(const http::HttpRequest& request,
 }
 
 http::HttpResponse RequestPipeline::process(const http::HttpRequest& request,
-                                             const std::string& client_ip) const {
+                                             const std::string& client_ip) {
     // Middleware 1: rate limiting
     if (rate_limiter_.enabled() && !rate_limiter_.allow(client_ip)) {
         logger::instance().warn("Rate limit exceeded for ", client_ip, " ", request.path);

@@ -144,7 +144,7 @@ bool should_keep_alive(const HttpRequest& request) {
 }
 
 std::optional<HttpRequest> parse_http_request(const std::string& raw) {
-    if (raw.empty()) {
+    if (!complete_request_size(raw)) {
         return std::nullopt;
     }
 

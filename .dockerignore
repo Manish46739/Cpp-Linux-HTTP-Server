@@ -1,0 +1,11 @@
+# Host CMake cache is invalid inside the image
+build/
+cmake-build-*/
+
+.git/
+.gitignore
+**/.DS_Store
+
+# Editor
+.vscode/
+.idea/

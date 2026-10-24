@@ -14,7 +14,7 @@ namespace server {
 
 class EpollServer {
 public:
-    EpollServer(const config::ServerConfig& config, const RequestPipeline& pipeline);
+    EpollServer(const config::ServerConfig& config, RequestPipeline& pipeline);
 
     void run(std::atomic<bool>& running);
 
@@ -41,7 +41,7 @@ private:
     void epoll_del(int fd);
 
     config::ServerConfig config_;
-    const RequestPipeline& pipeline_;
+    RequestPipeline& pipeline_;
 
     utils::UniqueFd listen_fd_;
     utils::UniqueFd epoll_fd_;

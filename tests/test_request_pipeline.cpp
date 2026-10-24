@@ -52,7 +52,7 @@ TEST_F(PipelineTest, RateLimitReturns429) {
     strict_cfg.cache_max_entries = 0;
 
     const router::Router router = router::make_default_router(strict_cfg);
-    const server::RequestPipeline strict_pipeline(strict_cfg, router);
+    server::RequestPipeline strict_pipeline(strict_cfg, router);
 
     http::HttpRequest request;
     request.method = "GET";

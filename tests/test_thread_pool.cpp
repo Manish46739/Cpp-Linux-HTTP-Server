@@ -12,7 +12,7 @@ TEST(TaskQueue, ProcessesEnqueuedTasks) {
 
     auto task = queue.dequeue();
     ASSERT_TRUE(task);
-    (*task)();
+    task->run();
 
     EXPECT_EQ(value.load(), 1);
     queue.shutdown();
